@@ -1,0 +1,559 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Billfold: free invoice and expense worksheet for UK sole traders</title>
+<meta name="description" content="Free, no-account invoice maker and expense log for UK sole traders. Invoices with the details GOV.UK lists, VAT only if you are VAT registered, expenses grouped by the Self Assessment headings and tax year. Runs in your browser." />
+<meta name="robots" content="index,follow" />
+<link rel="canonical" href="https://besttechguides.github.io/billfold/" />
+<style>
+  :root { --ink:#1c2430; --muted:#5d6b7c; --line:#e1e6ee; --green:#1f7a4d; --green-d:#173024; --bg:#f6f7f9; --warn:#8a5a00; --warn-bg:#fff6e0; --bad:#a32020; }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:"Segoe UI", system-ui, -apple-system, Arial, sans-serif; color:var(--ink); background:var(--bg); line-height:1.4; }
+  header { background:var(--green-d); color:#fff; padding:16px 22px; display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; }
+  header b { font-size:20px; letter-spacing:-.02em; }
+  header .sub { opacity:.85; font-size:13px; }
+  header .pill { font-size:12px; background:rgba(255,255,255,.14); padding:4px 10px; border-radius:20px; }
+  main { max-width:1000px; margin:0 auto; padding:20px; display:grid; grid-template-columns:1fr 1fr; gap:16px; }
+  section { background:#fff; border:1px solid var(--line); border-radius:14px; padding:16px; min-width:0; }
+  h2 { margin:0 0 10px; font-size:16px; }
+  h3 { margin:14px 0 6px; font-size:14px; }
+  label { display:block; font-size:12px; color:var(--muted); margin:8px 0 4px; }
+  input, select, textarea { width:100%; border:1px solid #cfd6e0; border-radius:8px; padding:8px 10px; font-size:14px; font-family:inherit; background:#fff; color:var(--ink); }
+  input:disabled, select:disabled { background:#f1f3f6; color:#8a94a3; }
+  .row { display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap; }
+  .row > div { flex:1; min-width:120px; }
+  .check { display:flex; gap:8px; align-items:center; font-size:14px; color:var(--ink); margin:10px 0 4px; }
+  .check input { width:auto; }
+  button { background:var(--green); color:#fff; border:0; border-radius:8px; padding:9px 12px; font-weight:700; cursor:pointer; font-size:14px; font-family:inherit; }
+  button.ghost { background:#fff; color:var(--ink); border:1px solid #cfd6e0; }
+  button.danger { background:#fff; color:var(--bad); border:1px solid #e8b4b4; }
+  button.small { padding:5px 9px; font-size:12px; }
+  .btns { display:flex; gap:8px; flex-wrap:wrap; margin-top:10px; }
+  table { width:100%; border-collapse:collapse; font-size:13px; }
+  th, td { text-align:left; padding:6px 4px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th { font-size:12px; color:var(--muted); font-weight:600; }
+  td.num, th.num { text-align:right; white-space:nowrap; }
+  .wide { grid-column:1 / -1; }
+  .muted { color:var(--muted); font-size:12px; }
+  .note { background:var(--warn-bg); color:var(--warn); border-radius:8px; padding:8px 10px; font-size:13px; margin:8px 0; }
+  .ok { color:var(--green); font-size:13px; }
+  .issues { margin:6px 0 0; padding-left:18px; font-size:13px; color:var(--warn); }
+  .totals { margin-top:10px; font-size:14px; }
+  .totals .tot { font-size:22px; font-weight:800; }
+  .tablewrap { overflow-x:auto; }
+  /* invoice document (screen preview and print) */
+  .doc { border:1px solid var(--line); border-radius:10px; padding:28px; background:#fff; font-size:13px; }
+  .doc .dhead { display:flex; justify-content:space-between; gap:20px; flex-wrap:wrap; }
+  .doc h1 { margin:0 0 4px; font-size:26px; letter-spacing:-.01em; }
+  .doc .who { white-space:normal; }
+  .doc .meta td { border:0; padding:2px 10px 2px 0; }
+  .doc .meta td:first-child { color:var(--muted); }
+  .doc .parties { display:flex; gap:30px; margin:20px 0; flex-wrap:wrap; }
+  .doc .parties > div { flex:1; min-width:200px; }
+  .doc .lbl { font-size:11px; text-transform:uppercase; letter-spacing:.06em; color:var(--muted); margin-bottom:3px; }
+  .doc table.items th { border-bottom:2px solid var(--ink); color:var(--ink); }
+  .doc table.sum { width:auto; margin-left:auto; margin-top:12px; }
+  .doc table.sum td { border:0; padding:3px 0 3px 24px; }
+  .doc table.sum tr.grand td { font-weight:800; font-size:16px; border-top:2px solid var(--ink); padding-top:6px; }
+  .doc .foot { margin-top:22px; font-size:12px; color:var(--muted); }
+  .links a { color:var(--green); font-weight:600; }
+  .links li { margin:6px 0; }
+  footer { max-width:1000px; margin:0 auto; padding:0 22px 28px; color:var(--muted); font-size:12px; }
+  footer p { margin:6px 0; }
+  @media (max-width:820px) { main { grid-template-columns:1fr; } }
+  @media print {
+    @page { margin:14mm; }
+    body { background:#fff; }
+    header, footer, .no-print, main > section:not(#previewSec) { display:none !important; }
+    main { display:block; padding:0; max-width:none; }
+    #previewSec { border:0; padding:0; }
+    #previewSec > h2, #previewSec > .muted { display:none !important; }
+    .doc { border:0; padding:0; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <div><b>Billfold</b><div class="sub">Free invoice and expense worksheet for UK sole traders</div></div>
+  <span class="pill">Free · no account · your data stays in this browser</span>
+</header>
+<main>
+  <section id="meSec">
+    <h2>Your details</h2>
+    <label for="meName">Your name (as a sole trader, your own name)</label><input id="meName" autocomplete="name" placeholder="Ada Lane" />
+    <label for="meTrading">Business or trading name (optional)</label><input id="meTrading" autocomplete="organization" placeholder="Ada Lane Design" />
+    <label for="meAddr">Business address (where legal documents can be sent)</label><textarea id="meAddr" rows="3" placeholder="12 Market Street&#10;Leeds LS1 1AA"></textarea>
+    <div class="row">
+      <div><label for="meEmail">Email</label><input id="meEmail" type="email" autocomplete="email" /></div>
+      <div><label for="mePhone">Phone (optional)</label><input id="mePhone" autocomplete="tel" /></div>
+    </div>
+    <h3>VAT</h3>
+    <p class="note" id="vatNote"><b>Only charge VAT if you are VAT registered.</b> Most sole traders below the VAT threshold are not, so Billfold charges no VAT unless you enter your VAT number.</p>
+    <label for="vatNo">VAT registration number (only if you are VAT registered)</label><input id="vatNo" placeholder="GB123456789" autocomplete="off" />
+    <p class="muted" id="vatNoMsg"></p>
+    <label class="check"><input type="checkbox" id="vatOn" disabled /> Charge VAT on this invoice</label>
+    <label for="vatRate">VAT rate</label>
+    <select id="vatRate" disabled>
+      <option value="20">20% standard rate</option>
+      <option value="5">5% reduced rate</option>
+      <option value="0">0% zero rate</option>
+    </select>
+    <p class="muted">Check the right rate for what you sell on GOV.UK (VAT rates on different goods and services).</p>
+  </section>
+
+  <section id="invSec">
+    <h2>Invoice</h2>
+    <div class="row">
+      <div><label for="num">Invoice number (must be unique)</label><input id="num" /></div>
+      <div><label for="date">Invoice date</label><input id="date" type="date" /></div>
+    </div>
+    <div class="row">
+      <div><label for="supply">Supply date (when the work was done or goods supplied)</label><input id="supply" type="date" /></div>
+      <div style="flex:0 0 auto;min-width:0"><button type="button" class="ghost small" id="supplySame">Same as invoice date</button></div>
+    </div>
+    <label for="cName">Client name</label><input id="cName" placeholder="Northwind Ltd" />
+    <label for="cAddr">Client address</label><textarea id="cAddr" rows="3"></textarea>
+    <label for="terms">Payment terms and how to pay</label><textarea id="terms" rows="2">Payment due within 14 days by bank transfer.</textarea>
+    <label for="discount">Prompt payment discount offered, % (optional)</label><input id="discount" type="number" min="0" max="100" step="0.1" placeholder="0" />
+    <p class="muted" id="taxPointMsg"></p>
+  </section>
+
+  <section class="wide" id="linesSec">
+    <h2>What you are charging for</h2>
+    <form id="lineForm" class="row no-print">
+      <div style="flex:3;min-width:200px"><label for="desc">Description</label><input id="desc" required placeholder="Logo design, 2 concepts" /></div>
+      <div style="flex:0 0 90px;min-width:0"><label for="qty">Qty / hours</label><input id="qty" type="number" min="0.01" step="0.01" value="1" required /></div>
+      <div style="flex:0 0 130px;min-width:0"><label for="price">Unit price £ (excl. VAT)</label><input id="price" type="number" min="0" step="0.01" required /></div>
+      <div style="flex:0 0 auto;min-width:0"><button type="submit" id="addLine">Add line</button></div>
+    </form>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Description</th><th class="num">Qty</th><th class="num">Unit price</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody id="lines"></tbody>
+    </table></div>
+    <div class="totals" id="totals"></div>
+    <div id="checks"></div>
+    <div class="btns">
+      <button type="button" id="printBtn">Print or save as PDF</button>
+      <button type="button" class="ghost" id="saveInv">Save to my invoices</button>
+      <button type="button" class="ghost" id="newInv">New invoice</button>
+    </div>
+    <p class="muted">Billfold does not send invoices. Print it, or choose "Save as PDF" in the print window and email it yourself.</p>
+  </section>
+
+  <section class="wide" id="previewSec">
+    <h2>Invoice preview</h2>
+    <p class="muted">This is exactly what prints. Edit the boxes above to change it.</p>
+    <div class="doc" id="invoiceDoc"></div>
+  </section>
+
+  <section class="wide" id="savedSec">
+    <h2>My invoices</h2>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Number</th><th>Date</th><th>Client</th><th class="num">Total</th><th></th></tr></thead>
+      <tbody id="savedList"></tbody>
+    </table></div>
+  </section>
+
+  <section class="wide" id="expSec">
+    <h2>Expenses</h2>
+    <p class="muted">Record costs you pay for the business. Enter only the business share of anything you also use privately. Client entertaining is not an allowable expense. Categories follow the Self Assessment self-employment pages (SA103S short form boxes 11 to 19, with the SA103F full form box in brackets).</p>
+    <form id="expForm" class="row no-print">
+      <div style="flex:0 0 150px;min-width:0"><label for="eDate">Date</label><input id="eDate" type="date" required /></div>
+      <div style="flex:2;min-width:160px"><label for="eWhat">What</label><input id="eWhat" required placeholder="Printer ink" /></div>
+      <div style="flex:0 0 110px;min-width:0"><label for="eAmt">Amount £</label><input id="eAmt" type="number" min="0.01" step="0.01" required /></div>
+      <div style="flex:3;min-width:220px"><label for="eCat">Category</label><select id="eCat"></select></div>
+      <div style="flex:0 0 auto;min-width:0"><button type="submit" id="addExp">Add expense</button></div>
+    </form>
+    <div class="row no-print" style="margin-top:10px">
+      <div style="flex:0 0 220px"><label for="eYear">Show tax year (6 April to 5 April)</label><select id="eYear"></select></div>
+      <div style="flex:0 0 auto;min-width:0"><button type="button" class="ghost" id="expCsv">Export CSV</button></div>
+    </div>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Date</th><th>What</th><th>Category</th><th class="num">Amount</th><th></th></tr></thead>
+      <tbody id="expList"></tbody>
+    </table></div>
+    <h3>Totals by category, <span id="catYearLbl"></span></h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Category</th><th class="num">SA103S box</th><th class="num">SA103F box</th><th class="num">Total</th></tr></thead>
+      <tbody id="catTotals"></tbody>
+    </table></div>
+    <h3>Totals by tax year</h3>
+    <div class="tablewrap"><table>
+      <thead><tr><th>Tax year</th><th>Dates</th><th class="num">Expenses</th><th class="num">Total</th></tr></thead>
+      <tbody id="yearTotals"></tbody>
+    </table></div>
+    <p class="muted">Turnover under £90,000? On the short form you can enter one total for all allowable expenses (box 20) instead of each box. Keep your receipts either way.</p>
+  </section>
+
+  <section id="dataSec">
+    <h2>Your data</h2>
+    <p class="muted">Everything is saved only in this browser on this device (localStorage). Nothing is sent anywhere. Clearing your browser data deletes it, so export a backup now and then.</p>
+    <div class="btns">
+      <button type="button" class="ghost" id="backupBtn">Export backup (.json)</button>
+      <label class="ghost" style="display:inline-block;margin:0;border:1px solid #cfd6e0;border-radius:8px;padding:9px 12px;font-size:14px;font-weight:700;color:var(--ink);cursor:pointer">Import backup<input type="file" id="restore" accept=".json,application/json" style="display:none" /></label>
+      <button type="button" class="danger" id="wipeBtn">Delete all data</button>
+    </div>
+  </section>
+
+  <section id="moreSec" class="links">
+    <h2>Other tools from Best Tech Guides</h2>
+    <p class="muted">Optional. Billfold is free and works without them.</p>
+    <ul>
+      <li><a href="https://besttechguides.github.io/mtd-scopecheck/" target="_blank" rel="noopener">MTD ScopeCheck</a> (free): check whether and when Making Tax Digital for Income Tax applies to you.</li>
+      <li><a href="https://payhip.com/b/d2CPD" target="_blank" rel="noopener">MileClaim pack</a> (£12): a printable mileage log and a plain-English guide to mileage claims.</li>
+    </ul>
+  </section>
+</main>
+<footer id="siteFooter">
+  <p><b>Billfold is an invoice and expense worksheet, not accounting software.</b> It does not send invoices, does not file VAT or tax returns, and is not tax advice. Check your figures before you send them.</p>
+  <p id="mtdNote"><b>Billfold is not Making Tax Digital (MTD) software.</b> It cannot keep MTD digital records for HMRC or send updates or returns. If MTD for Income Tax applies to you (from 6 April 2026 if your qualifying income was over £50,000 in 2024 to 2025; the threshold falls to £30,000 from April 2027 and £20,000 from April 2028), you need HMRC-recognised software. VAT-registered businesses must use MTD-compatible software for VAT returns.</p>
+  <p>Sources: GOV.UK "Invoices: what they must include"; HMRC VAT Notice 700 (sections 14, 16 and 17.5); SA103S and SA103F 2025 to 2026; GOV.UK "Find out if and when you need to use Making Tax Digital for Income Tax". Checked 4 October 2026.</p>
+  <p id="trader">Best Tech Guides is a trading name of Andrew Ellis, 11 Laneside Avenue, Toton, Nottingham NG9 6LW. Email: <a href="mailto:lemondogs@yahoo.co.uk">lemondogs@yahoo.co.uk</a></p>
+  <p><a href="https://besttechguides.github.io/">More tools from UK Admin Tools</a></p>
+  <p>Billfold v1.0.0 · built 2026-10-04 · free to use</p>
+</footer>
+<script>
+(function () {
+  "use strict";
+  var KEY = "billfold.v1";
+  /* Self Assessment allowable expense headings (SA103S 2025-26 boxes 11-19; SA103F boxes 17-30) */
+  var CATS = [
+    { k: "goods", label: "Costs of goods bought for resale or goods used", s: "11", f: "17" },
+    { k: "car", label: "Car, van and travel expenses (after private use proportion)", s: "12", f: "20" },
+    { k: "staff", label: "Wages, salaries and other staff costs", s: "13", f: "19" },
+    { k: "premises", label: "Rent, rates, power and insurance costs", s: "14", f: "21" },
+    { k: "repairs", label: "Repairs and maintenance of property and equipment", s: "15", f: "22" },
+    { k: "professional", label: "Accountancy, legal and other professional fees", s: "16", f: "28" },
+    { k: "finance", label: "Interest and bank and credit card financial charges", s: "17", f: "25/26" },
+    { k: "office", label: "Phone, fax, stationery and other office costs", s: "18", f: "23" },
+    { k: "advertising", label: "Advertising (short form: part of box 19 'Other'; not client entertaining)", s: "19", f: "24" },
+    { k: "other", label: "Other allowable business expenses", s: "19", f: "30" }
+  ];
+  var catBy = {}; CATS.forEach(function (c) { catBy[c.k] = c; });
+  var OLD_CAT = { Software: "office", Travel: "car", Materials: "goods", Other: "other" };
+
+  function $(id) { return document.getElementById(id); }
+  function esc(v) { return String(v == null ? "" : v).replace(/[&<>"']/g, function (ch) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch]; }); }
+  function escLines(v) { return esc(v).replace(/\r?\n/g, "<br>"); }
+  function pad(n) { return String(n).padStart(2, "0"); }
+  function todayIso() { var d = new Date(); return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate()); }
+  function uid() { return Date.now().toString(36) + Math.random().toString(36).slice(2, 8); }
+  function pence(n) { return Math.round(Number(n) * 100); }
+  function money(p) { var neg = p < 0; p = Math.abs(p); return (neg ? "-£" : "£") + Math.floor(p / 100).toLocaleString("en-GB") + "." + pad(p % 100); }
+  function fmtDate(iso) {
+    if (!iso || !/^\d{4}-\d{2}-\d{2}$/.test(iso)) return "";
+    var m = ["January","February","March","April","May","June","July","August","September","October","November","December"];
+    var p = iso.split("-"); return Number(p[2]) + " " + m[Number(p[1]) - 1] + " " + p[0];
+  }
+  function daysBetween(a, b) { return Math.round((Date.UTC(+b.slice(0,4), +b.slice(5,7)-1, +b.slice(8,10)) - Date.UTC(+a.slice(0,4), +a.slice(5,7)-1, +a.slice(8,10))) / 86400000); }
+  /* UK tax year runs 6 April to 5 April; returns the starting year */
+  function taxYearStart(iso) { var y = Number(iso.slice(0, 4)); return iso.slice(5) >= "04-06" ? y : y - 1; }
+  function taxYearLabel(start) { return start + "\u2013" + String(start + 1).slice(2); }
+  function cleanVat(v) { return String(v || "").replace(/[\s.-]/g, "").toUpperCase(); }
+  function vatValid(v) { return /^(GB|XI)?\d{9}(\d{3})?$/.test(cleanVat(v)); }
+
+  function blankDraft(num) {
+    return { id: uid(), num: num || "INV-0001", date: todayIso(), supply: "", client: { name: "", addr: "" }, terms: "Payment due within 14 days by bank transfer.", discount: "", lines: [], vatOn: false, vatRate: 20 };
+  }
+  function load() {
+    var s = null;
+    try { s = JSON.parse(localStorage.getItem(KEY) || "null"); } catch (e) { s = null; }
+    if (!s || typeof s !== "object") s = {};
+    s.me = Object.assign({ name: "", trading: "", addr: "", email: "", phone: "", vatNo: "" }, s.me || {});
+    s.draft = s.draft && typeof s.draft === "object" ? Object.assign(blankDraft(), s.draft) : blankDraft();
+    s.draft.client = Object.assign({ name: "", addr: "" }, s.draft.client || {});
+    if (!Array.isArray(s.draft.lines)) s.draft.lines = [];
+    if (!Array.isArray(s.invoices)) s.invoices = [];
+    if (!Array.isArray(s.exps)) s.exps = [];
+    /* one-off import of expenses from the first Billfold version (key "billfold-exp") */
+    if (!s.migratedOld) {
+      try {
+        var old = JSON.parse(localStorage.getItem("billfold-exp") || "[]");
+        if (Array.isArray(old)) old.forEach(function (e) {
+          var amt = pence(e.amt);
+          if (e && e.date && amt > 0) s.exps.push({ id: uid(), date: String(e.date), what: String(e.what || ""), cat: OLD_CAT[e.cat] || "other", amt: amt });
+        });
+      } catch (e) {}
+      s.migratedOld = true;
+    }
+    return s;
+  }
+  var state = load();
+  function save() {
+    try { localStorage.setItem(KEY, JSON.stringify(state)); }
+    catch (e) { alert("This browser\u2019s storage is full, so your last change was NOT saved. Export a backup now."); }
+  }
+
+  /* ---- maths (integer pence) ---- */
+  function lineAmount(l) { return Math.round(Number(l.qty) * l.unit); }
+  function totalsOf(inv, me) {
+    var net = inv.lines.reduce(function (s, l) { return s + lineAmount(l); }, 0);
+    var vatOn = !!(inv.vatOn && vatValid((me || state.me).vatNo));
+    var rate = vatOn ? Number(inv.vatRate) || 0 : 0;
+    /* VAT on the invoice total, rounded down to the whole penny (VAT Notice 700, para 17.5) */
+    var vat = vatOn ? Math.floor(net * rate / 100 + 1e-9) : 0;
+    return { net: net, vat: vat, gross: net + vat, vatOn: vatOn, rate: rate };
+  }
+  function taxPoint(inv) {
+    if (inv.supply && inv.date && daysBetween(inv.supply, inv.date) > 14) return inv.supply;
+    return inv.date;
+  }
+  /* next number: increment the last run of digits, keeping zero padding; skip numbers already used */
+  function nextNumber(num, taken) {
+    num = String(num || "INV-0000");
+    var cand = num, guard = 0;
+    do {
+      var m = cand.match(/^(.*?)(\d+)(\D*)$/);
+      if (m) { var n = String(Number(m[2]) + 1).padStart(m[2].length, "0"); cand = m[1] + n + m[3]; }
+      else cand = cand + "-2";
+      guard++;
+    } while (taken.indexOf(cand) !== -1 && guard < 10000);
+    return cand;
+  }
+
+  /* ---- checks: what GOV.UK / VAT Notice 700 say an invoice must show ---- */
+  function issuesOf(inv, me) {
+    var t = totalsOf(inv, me), out = [];
+    if (!String(inv.num).trim()) out.push("an invoice number");
+    else if (state.invoices.some(function (x) { return x.id !== inv.id && String(x.num).trim() === String(inv.num).trim(); })) out.push("a unique invoice number (another saved invoice uses " + inv.num + ")");
+    if (!me.name.trim()) out.push("your name");
+    if (!me.addr.trim()) out.push("your business address");
+    if (!me.email.trim() && !me.phone.trim()) out.push("your contact details (email or phone)");
+    if (!inv.client.name.trim()) out.push("the client\u2019s name");
+    if (!inv.client.addr.trim()) out.push("the client\u2019s address");
+    if (!inv.date) out.push("the invoice date");
+    if (!inv.supply) out.push("the supply date (when the work was done or the goods were supplied)");
+    if (!inv.lines.length) out.push("at least one line describing what you are charging for");
+    if (t.vatOn && !vatValid(me.vatNo)) out.push("a valid VAT registration number");
+    return out;
+  }
+
+  /* ---- render ---- */
+  function bindForm() {
+    var me = state.me, d = state.draft;
+    $("meName").value = me.name; $("meTrading").value = me.trading; $("meAddr").value = me.addr;
+    $("meEmail").value = me.email; $("mePhone").value = me.phone; $("vatNo").value = me.vatNo;
+    $("num").value = d.num; $("date").value = d.date; $("supply").value = d.supply;
+    $("cName").value = d.client.name; $("cAddr").value = d.client.addr; $("terms").value = d.terms; $("discount").value = d.discount;
+    $("vatOn").checked = !!d.vatOn; $("vatRate").value = String(d.vatRate == null ? 20 : d.vatRate);
+  }
+  function syncVatUi() {
+    var valid = vatValid(state.me.vatNo), entered = cleanVat(state.me.vatNo) !== "";
+    if (!valid && state.draft.vatOn) state.draft.vatOn = false;
+    $("vatOn").disabled = !valid; $("vatOn").checked = !!state.draft.vatOn;
+    $("vatRate").disabled = !(valid && state.draft.vatOn);
+    $("vatNoMsg").textContent = !entered ? "No VAT number entered, so no VAT is charged (0%)."
+      : valid ? "VAT number entered. Tick the box to charge VAT on this invoice."
+      : "This does not look like a UK VAT number (GB followed by 9 digits). VAT stays off until it does.";
+  }
+  function invoiceHtml(inv, me) {
+    var t = totalsOf(inv, me);
+    var title = t.vatOn ? "VAT invoice" : "Invoice";
+    var fromName = me.trading.trim() ? esc(me.trading) + "<br><span class=\"muted\">" + esc(me.name) + (me.name.trim() ? " trading as " + esc(me.trading) : "") + "</span>" : esc(me.name);
+    var contact = [me.email.trim() ? esc(me.email) : "", me.phone.trim() ? esc(me.phone) : ""].filter(Boolean).join("<br>");
+    var meta = "<tr><td>Invoice number</td><td><b>" + esc(inv.num) + "</b></td></tr>" +
+      "<tr><td>Invoice date</td><td>" + esc(fmtDate(inv.date)) + "</td></tr>" +
+      (inv.supply ? "<tr><td>Supply date</td><td>" + esc(fmtDate(inv.supply)) + "</td></tr>" : "") +
+      (t.vatOn ? "<tr><td>Tax point (time of supply)</td><td>" + esc(fmtDate(taxPoint(inv))) + "</td></tr><tr><td>VAT registration number</td><td>" + esc(cleanVat(me.vatNo)) + "</td></tr>" : "");
+    var rows = inv.lines.map(function (l) {
+      return "<tr><td>" + esc(l.desc) + "</td><td class=\"num\">" + esc(l.qty) + "</td><td class=\"num\">" + money(l.unit) + "</td>" +
+        (t.vatOn ? "<td class=\"num\">" + esc(t.rate) + "%</td>" : "") + "<td class=\"num\">" + money(lineAmount(l)) + "</td></tr>";
+    }).join("") || "<tr><td colspan=\"" + (t.vatOn ? 5 : 4) + "\" class=\"muted\">No lines yet.</td></tr>";
+    var sum = t.vatOn
+      ? "<tr><td>Total excluding VAT</td><td class=\"num\" id=\"docNet\">" + money(t.net) + "</td></tr><tr><td>VAT at " + esc(t.rate) + "%</td><td class=\"num\" id=\"docVat\">" + money(t.vat) + "</td></tr><tr class=\"grand\"><td>Total due</td><td class=\"num\" id=\"docGross\">" + money(t.gross) + "</td></tr>"
+      : "<tr class=\"grand\"><td>Total due</td><td class=\"num\" id=\"docGross\">" + money(t.gross) + "</td></tr>";
+    var disc = Number(inv.discount) > 0 ? "<p>Prompt payment discount offered: " + esc(Number(inv.discount)) + "%.</p>" : "";
+    return "<div class=\"dhead\"><div class=\"who\"><h1>" + title + "</h1><div><b>" + fromName + "</b></div><div>" + escLines(me.addr) + "</div><div>" + contact + "</div></div>" +
+      "<table class=\"meta\" style=\"width:auto\">" + meta + "</table></div>" +
+      "<div class=\"parties\"><div><div class=\"lbl\">Bill to</div><b>" + esc(inv.client.name) + "</b><br>" + escLines(inv.client.addr) + "</div></div>" +
+      "<table class=\"items\"><thead><tr><th>Description</th><th class=\"num\">Qty</th><th class=\"num\">Unit price</th>" + (t.vatOn ? "<th class=\"num\">VAT rate</th><th class=\"num\">Amount excl. VAT</th>" : "<th class=\"num\">Amount</th>") + "</tr></thead><tbody>" + rows + "</tbody></table>" +
+      "<table class=\"sum\">" + sum + "</table>" +
+      "<div class=\"foot\">" + (inv.terms.trim() ? "<p>" + escLines(inv.terms) + "</p>" : "") + disc + "</div>";
+  }
+  function render() {
+    var d = state.draft, me = state.me, t = totalsOf(d, me);
+    syncVatUi();
+    $("lines").innerHTML = d.lines.map(function (l, i) {
+      return "<tr><td>" + esc(l.desc) + "</td><td class=\"num\">" + esc(l.qty) + "</td><td class=\"num\">" + money(l.unit) + "</td><td class=\"num\">" + money(lineAmount(l)) + "</td><td class=\"num\"><button type=\"button\" class=\"ghost small\" data-rmline=\"" + i + "\">Remove</button></td></tr>";
+    }).join("") || "<tr><td colspan=\"5\" class=\"muted\">No lines yet. Add what you are charging for above.</td></tr>";
+    $("totals").innerHTML = (t.vatOn
+      ? "Total excluding VAT <b id=\"net\">" + money(t.net) + "</b> · VAT at " + esc(t.rate) + "% <b id=\"vatAmt\">" + money(t.vat) + "</b>"
+      : "<span id=\"net\" hidden>" + money(t.net) + "</span><span id=\"vatAmt\" hidden>" + money(0) + "</span>No VAT charged") +
+      "<div class=\"tot\" id=\"gross\">" + money(t.gross) + "</div>";
+    var iss = issuesOf(d, me);
+    $("checks").innerHTML = iss.length ? "<div class=\"note\" id=\"issues\">Before you send it, add: <ul class=\"issues\">" + iss.map(function (x) { return "<li>" + esc(x) + "</li>"; }).join("") + "</ul></div>"
+      : "<p class=\"ok\" id=\"issues\">This invoice has the details GOV.UK lists for " + (t.vatOn ? "a VAT invoice" : "an invoice") + ".</p>";
+    $("taxPointMsg").textContent = t.vatOn
+      ? "Tax point on this invoice: " + fmtDate(taxPoint(d)) + ". The invoice date is the tax point if you issue it before the supply date or within 14 days after it; otherwise the supply date is. A payment received earlier creates an earlier tax point (VAT Notice 700, 14.2)."
+      : "";
+    $("invoiceDoc").innerHTML = invoiceHtml(d, me);
+    renderSaved(); renderExps();
+  }
+  function renderSaved() {
+    $("savedList").innerHTML = state.invoices.slice().sort(function (a, b) { return (b.date || "").localeCompare(a.date || "") || String(b.num).localeCompare(String(a.num)); }).map(function (inv) {
+      var t = totalsOf(inv, inv.me || state.me);
+      return "<tr data-inv=\"" + esc(inv.id) + "\"><td>" + esc(inv.num) + (inv.id === state.draft.id ? " <span class=\"muted\">(open)</span>" : "") + "</td><td>" + esc(fmtDate(inv.date)) + "</td><td>" + esc(inv.client.name) + "</td><td class=\"num\">" + money(t.gross) + "</td>" +
+        "<td class=\"num\"><button type=\"button\" class=\"ghost small\" data-openinv=\"" + esc(inv.id) + "\">Open</button> <button type=\"button\" class=\"danger small\" data-delinv=\"" + esc(inv.id) + "\">Delete</button></td></tr>";
+    }).join("") || "<tr><td colspan=\"5\" class=\"muted\">No saved invoices yet. \u201cSave to my invoices\u201d or \u201cNew invoice\u201d keeps a copy here.</td></tr>";
+  }
+  var shownYear = null;
+  function expYears() {
+    var ys = {}; state.exps.forEach(function (e) { ys[taxYearStart(e.date)] = 1; });
+    ys[taxYearStart(todayIso())] = 1;
+    return Object.keys(ys).map(Number).sort(function (a, b) { return b - a; });
+  }
+  function renderExps() {
+    var years = expYears();
+    if (shownYear === null || (shownYear !== "all" && years.indexOf(shownYear) === -1)) shownYear = taxYearStart(todayIso());
+    $("eYear").innerHTML = years.map(function (y) { return "<option value=\"" + y + "\">" + taxYearLabel(y) + "</option>"; }).join("") + "<option value=\"all\">All years</option>";
+    $("eYear").value = String(shownYear);
+    var list = state.exps.filter(function (e) { return shownYear === "all" || taxYearStart(e.date) === shownYear; })
+      .sort(function (a, b) { return b.date.localeCompare(a.date); });
+    $("expList").innerHTML = list.map(function (e) {
+      return "<tr><td>" + esc(fmtDate(e.date)) + "</td><td>" + esc(e.what) + "</td><td>" + esc((catBy[e.cat] || catBy.other).label) + "</td><td class=\"num\">" + money(e.amt) + "</td><td class=\"num\"><button type=\"button\" class=\"danger small\" data-delexp=\"" + esc(e.id) + "\">Delete</button></td></tr>";
+    }).join("") || "<tr><td colspan=\"5\" class=\"muted\">No expenses in this tax year yet.</td></tr>";
+    $("catYearLbl").textContent = shownYear === "all" ? "all years" : "tax year " + taxYearLabel(shownYear) + " (6 April " + shownYear + " to 5 April " + (shownYear + 1) + ")";
+    var tot = {}; list.forEach(function (e) { var k = catBy[e.cat] ? e.cat : "other"; tot[k] = (tot[k] || 0) + e.amt; });
+    var all = list.reduce(function (s, e) { return s + e.amt; }, 0);
+    $("catTotals").innerHTML = CATS.filter(function (c) { return tot[c.k]; }).map(function (c) {
+      return "<tr data-cat=\"" + c.k + "\"><td>" + esc(c.label) + "</td><td class=\"num\">" + c.s + "</td><td class=\"num\">" + c.f + "</td><td class=\"num\">" + money(tot[c.k]) + "</td></tr>";
+    }).join("") + "<tr data-cat=\"total\"><td><b>Total allowable expenses</b></td><td class=\"num\">20</td><td class=\"num\">31</td><td class=\"num\"><b>" + money(all) + "</b></td></tr>";
+    var by = {}; state.exps.forEach(function (e) { var y = taxYearStart(e.date); by[y] = by[y] || { n: 0, p: 0 }; by[y].n++; by[y].p += e.amt; });
+    $("yearTotals").innerHTML = Object.keys(by).map(Number).sort(function (a, b) { return b - a; }).map(function (y) {
+      return "<tr data-year=\"" + y + "\"><td>" + taxYearLabel(y) + "</td><td>6 April " + y + " to 5 April " + (y + 1) + "</td><td class=\"num\">" + by[y].n + "</td><td class=\"num\">" + money(by[y].p) + "</td></tr>";
+    }).join("") || "<tr><td colspan=\"4\" class=\"muted\">No expenses yet.</td></tr>";
+  }
+
+  /* ---- events ---- */
+  function onInput(id, fn) { $(id).addEventListener("input", function () { fn($(id).value); save(); render(); }); }
+  onInput("meName", function (v) { state.me.name = v; });
+  onInput("meTrading", function (v) { state.me.trading = v; });
+  onInput("meAddr", function (v) { state.me.addr = v; });
+  onInput("meEmail", function (v) { state.me.email = v; });
+  onInput("mePhone", function (v) { state.me.phone = v; });
+  onInput("vatNo", function (v) { state.me.vatNo = v; });
+  onInput("num", function (v) { state.draft.num = v; });
+  onInput("date", function (v) { state.draft.date = v; });
+  onInput("supply", function (v) { state.draft.supply = v; });
+  onInput("cName", function (v) { state.draft.client.name = v; });
+  onInput("cAddr", function (v) { state.draft.client.addr = v; });
+  onInput("terms", function (v) { state.draft.terms = v; });
+  onInput("discount", function (v) { state.draft.discount = v; });
+  $("vatOn").addEventListener("change", function () { state.draft.vatOn = $("vatOn").checked && vatValid(state.me.vatNo); if (state.draft.vatOn && state.draft.vatRate == null) state.draft.vatRate = 20; save(); render(); });
+  $("vatRate").addEventListener("change", function () { state.draft.vatRate = Number($("vatRate").value); save(); render(); });
+  $("supplySame").onclick = function () { state.draft.supply = state.draft.date; $("supply").value = state.draft.supply; save(); render(); };
+  $("lineForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var qty = Number($("qty").value), unit = pence($("price").value);
+    if (!$("desc").value.trim() || !(qty > 0) || !(unit >= 0)) return;
+    state.draft.lines.push({ desc: $("desc").value.trim(), qty: Math.round(qty * 100) / 100, unit: unit });
+    $("desc").value = ""; $("price").value = ""; $("qty").value = "1";
+    save(); render(); $("desc").focus();
+  });
+  $("lines").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-rmline]"); if (!b) return;
+    state.draft.lines.splice(Number(b.dataset.rmline), 1); save(); render();
+  });
+  function snapshot() { var c = JSON.parse(JSON.stringify(state.draft)); c.me = JSON.parse(JSON.stringify(state.me)); c.savedAt = new Date().toISOString(); return c; }
+  function hasContent(d) { return d.lines.length > 0 || d.client.name.trim() !== ""; }
+  function saveDraftToList() {
+    var snap = snapshot(), i = state.invoices.findIndex(function (x) { return x.id === snap.id; });
+    if (i >= 0) state.invoices[i] = snap; else state.invoices.push(snap);
+  }
+  $("saveInv").onclick = function () {
+    var dup = state.invoices.some(function (x) { return x.id !== state.draft.id && String(x.num).trim() === String(state.draft.num).trim(); });
+    if (dup) { alert("Another saved invoice already uses number " + state.draft.num + ". Invoice numbers must be unique: change it first."); return; }
+    saveDraftToList(); save(); render();
+  };
+  $("newInv").onclick = function () {
+    if (hasContent(state.draft)) saveDraftToList();
+    var taken = state.invoices.map(function (x) { return String(x.num).trim(); });
+    var prev = state.draft;
+    var d = blankDraft(nextNumber(prev.num, taken));
+    d.terms = prev.terms; d.vatOn = prev.vatOn; d.vatRate = prev.vatRate;
+    state.draft = d; save(); bindForm(); render();
+  };
+  $("savedList").addEventListener("click", function (e) {
+    var o = e.target.closest("[data-openinv]"), del = e.target.closest("[data-delinv]");
+    if (o) {
+      if (hasContent(state.draft) && state.draft.id !== o.dataset.openinv) saveDraftToList();
+      var inv = state.invoices.find(function (x) { return x.id === o.dataset.openinv; }); if (!inv) return;
+      var c = JSON.parse(JSON.stringify(inv)); delete c.me; delete c.savedAt;
+      state.draft = Object.assign(blankDraft(), c); save(); bindForm(); render();
+    } else if (del) {
+      var inv2 = state.invoices.find(function (x) { return x.id === del.dataset.delinv; }); if (!inv2) return;
+      if (!confirm("Delete saved invoice " + inv2.num + "? This cannot be undone.")) return;
+      state.invoices = state.invoices.filter(function (x) { return x.id !== inv2.id; }); save(); render();
+    }
+  });
+  $("printBtn").onclick = function () {
+    var iss = issuesOf(state.draft, state.me);
+    if (iss.length && !confirm("This invoice is missing: " + iss.join("; ") + ". Print anyway?")) return;
+    window.print();
+  };
+  /* expenses */
+  $("eCat").innerHTML = CATS.map(function (c) { return "<option value=\"" + c.k + "\">" + esc(c.label) + " (box " + c.s + ")</option>"; }).join("");
+  $("eDate").value = todayIso();
+  $("expForm").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var amt = pence($("eAmt").value), date = $("eDate").value;
+    if (!date || !$("eWhat").value.trim() || !(amt > 0)) return;
+    state.exps.push({ id: uid(), date: date, what: $("eWhat").value.trim(), cat: $("eCat").value, amt: amt });
+    shownYear = taxYearStart(date);
+    $("eWhat").value = ""; $("eAmt").value = "";
+    save(); render();
+  });
+  $("expList").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-delexp]"); if (!b) return;
+    state.exps = state.exps.filter(function (x) { return x.id !== b.dataset.delexp; }); save(); render();
+  });
+  $("eYear").addEventListener("change", function () { var v = $("eYear").value; shownYear = v === "all" ? "all" : Number(v); render(); });
+  function csvCell(v) {
+    var s = String(v == null ? "" : v);
+    if (/^[=+\-@\t\r]/.test(s)) s = "'" + s; /* stop spreadsheet formula injection */
+    return /[",\r\n]/.test(s) ? "\"" + s.replace(/"/g, "\"\"") + "\"" : s;
+  }
+  function download(name, text, type) {
+    var blob = new Blob([text], { type: type });
+    window.__lastDownload = { name: name, text: text };
+    var a = document.createElement("a"); a.href = URL.createObjectURL(blob); a.download = name;
+    document.body.appendChild(a); a.click(); setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+  }
+  $("expCsv").onclick = function () {
+    var list = state.exps.filter(function (e) { return shownYear === "all" || taxYearStart(e.date) === shownYear; }).sort(function (a, b) { return a.date.localeCompare(b.date); });
+    var rows = [["Date", "Tax year", "Description", "Category", "SA103S box", "SA103F box", "Amount (GBP)"]].concat(list.map(function (e) {
+      var c = catBy[e.cat] || catBy.other;
+      return [e.date, taxYearLabel(taxYearStart(e.date)), e.what, c.label, c.s, c.f, (e.amt / 100).toFixed(2)];
+    }));
+    download("billfold-expenses-" + (shownYear === "all" ? "all" : taxYearLabel(shownYear).replace("\u2013", "-")) + ".csv", "\uFEFF" + rows.map(function (r) { return r.map(csvCell).join(","); }).join("\r\n") + "\r\n", "text/csv");
+  };
+  /* data */
+  $("backupBtn").onclick = function () { download("billfold-backup-" + todayIso() + ".json", JSON.stringify({ app: "billfold", version: "1.0.0", exported: new Date().toISOString(), data: state }, null, 2), "application/json"); };
+  $("restore").addEventListener("change", function (e) {
+    var f = e.target.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var obj = JSON.parse(String(r.result));
+        if (!obj || obj.app !== "billfold" || !obj.data) throw new Error("This is not a Billfold backup file.");
+        localStorage.setItem(KEY, JSON.stringify(obj.data)); state = load(); save(); shownYear = null; bindForm(); render();
+        alert("Backup imported.");
+      } catch (err) { alert("Import failed: " + err.message); }
+    };
+    r.readAsText(f); e.target.value = "";
+  });
+  $("wipeBtn").onclick = function () {
+    if (!confirm("Delete all Billfold data in this browser (your details, invoices and expenses)? Export a backup first if you want to keep it.")) return;
+    localStorage.removeItem(KEY); localStorage.removeItem("billfold-exp");
+    state = load(); state.migratedOld = true; save(); shownYear = null; bindForm(); render();
+  };
+
+  /* test hooks (read-only helpers) */
+  window.Billfold = { totalsOf: totalsOf, nextNumber: nextNumber, taxYearStart: taxYearStart, taxPoint: taxPoint, vatValid: vatValid, state: function () { return JSON.parse(JSON.stringify(state)); } };
+  save(); bindForm(); render();
+})();
+</script>
+</body>
+</html>
